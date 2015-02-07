@@ -154,14 +154,14 @@ Command.prototype.__proto__ = EventEmitter.prototype;
  * @api public
  */
 
-Command.prototype.command = function(name, desc) {
+Command.prototype.command = function(name, desc, options) {
   var args = name.split(/ +/);
   var cmd = new Command(args.shift());
 
   if (desc) {
     cmd.description(desc);
     this.executables = true;
-    this._execs[cmd._name] = true;
+    this._execs[cmd._name] = options ? options : true;
   }
 
   this.commands.push(cmd);
@@ -429,7 +429,7 @@ Command.prototype.parse = function(argv) {
   // executable sub-commands
   var name = result.args[0];
   if (this._execs[name] && typeof this._execs[name] != "function") {
-    return this.executeSubCommand(argv, args, parsed.unknown);
+    return this.executeSubCommand(name, argv, args, parsed.unknown);
   }
 
   return result;
@@ -444,7 +444,7 @@ Command.prototype.parse = function(argv) {
  * @api private
  */
 
-Command.prototype.executeSubCommand = function(argv, args, unknown) {
+Command.prototype.executeSubCommand = function(name, argv, args, unknown) {
   args = args.concat(unknown);
 
   if (!args.length) this.help();
@@ -460,11 +460,34 @@ Command.prototype.executeSubCommand = function(argv, args, unknown) {
   var dir = dirname(argv[1]);
   var bin = basename(argv[1], '.js') + '-' + args[0];
 
+  // handle options
+  var options = this._execs[name],
+      beginIndex = 1;
+
+  var isAbsolute = function (data) {
+    // node v0.12
+    if ('function' === typeof path.isAbsolute) {
+      return path.isAbsolute(data);
+    } else {
+      return path.resolve(data) == path.normalize(data);
+    }
+  };
+
+  if ('object' === typeof options) {
+    if (isAbsolute(options.dir)) {
+      dir = options.dir;
+    } else {
+      dir = path.join(dir, options.dir || '');
+    }
+    bin = options.bin || args[0];
+    beginIndex = options.beginIndex || 1;
+  }
+
   // check for ./<bin> first
   var local = path.join(dir, bin);
 
   // run it
-  args = args.slice(1);
+  args = args.slice(beginIndex);
   args.unshift(local);
   var proc = spawn('node', args, { stdio: 'inherit', customFds: [0, 1, 2] });
   proc.on('error', function(err) {

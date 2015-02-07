@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+
+var path = require('path'),
+    program = require('..');
+
+program
+  .version('0.0.1')
+  .command('api v1 [name]', 'api', {
+    dir: path.join(__dirname, './api'), bin: 'v1', beginIndex: 2
+//    dir: './api', bin: 'v1', beginIndex: 2
+  })
+  .parse(process.argv);
+
+// Try the following:
+//   ./examples/api-custom api v1
+//   ./examples/api-custom api v1 install -h
+//   ./examples/api-custom api v1 install foo bar baz
+//   ./examples/api-custom api v1 install foo bar baz --force
