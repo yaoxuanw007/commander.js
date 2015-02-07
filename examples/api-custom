@@ -6,8 +6,20 @@ var path = require('path'),
 program
   .version('0.0.1')
   .command('api v1 [name]', 'api', {
-    dir: path.join(__dirname, './api'), bin: 'v1', beginIndex: 2
-//    dir: './api', bin: 'v1', beginIndex: 2
+//    dir: path.join(__dirname, './api'), bin: 'v1.js', beginIndex: 2
+
+//    dir: './api', bin: 'v1.js', beginIndex: 2
+
+//    dir: './api',
+//    bin: function (args) {
+//      return args[1] + '.js';
+//    },
+//    beginIndex: 2
+
+      bin: function (args) {
+        return path.join('./', args[0], args[1] + '.js');
+      },
+      beginIndex: 2
   })
   .parse(process.argv);
 

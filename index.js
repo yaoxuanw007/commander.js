@@ -474,12 +474,18 @@ Command.prototype.executeSubCommand = function(name, argv, args, unknown) {
   };
 
   if ('object' === typeof options) {
-    if (isAbsolute(options.dir)) {
-      dir = options.dir;
-    } else {
-      dir = path.join(dir, options.dir || '');
+    if (options.dir) {
+      if (isAbsolute(options.dir)) {
+        dir = options.dir;
+      } else {
+        dir = path.join(dir, options.dir);
+      }
     }
-    bin = options.bin || args[0];
+    if ('function' === typeof options.bin) {
+      bin = options.bin(args);
+    } else {
+      bin = options.bin || args[0];
+    }
     beginIndex = options.beginIndex || 1;
   }
 
