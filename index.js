@@ -160,7 +160,9 @@ Command.prototype.command = function(name, desc, options) {
 
   if (desc) {
     cmd.description(desc);
-    this.executables = true;
+    this.executables = options.hasOwnProperty('executables')
+      ? options.executables
+      : true;
     this._execs[cmd._name] = options ? options : true;
   }
 

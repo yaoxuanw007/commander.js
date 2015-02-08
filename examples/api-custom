@@ -12,6 +12,7 @@ program.command('api', 'api desc', {
       help: function () {
         console.log("api help");
       },
+      executables: false,
       skipCount: 1
 });
 
