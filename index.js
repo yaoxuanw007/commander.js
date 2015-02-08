@@ -447,64 +447,75 @@ Command.prototype.parse = function(argv) {
 Command.prototype.executeSubCommand = function(name, argv, args, unknown) {
   args = args.concat(unknown);
 
-  if (!args.length) this.help();
+  // handle options
+  var options = this._execs[name],
+      skipCount = 0,
+      help = this.help;
+
+  if ('object' === typeof options) {
+    skipCount = options.skipCount || 0;
+
+    if ('function' === typeof options.help) {
+      help = function () {
+        options.help.apply(this);
+        process.exit();
+      }
+    }
+  }
+
+  // help
   if ('help' == args[0] && 1 == args.length) this.help();
 
+  // <cmd>
+  if (args.length - skipCount === 0) help.apply(this);
+
+  // <cmd> help
+  for (var i = 1; i <= skipCount; i++) {
+    if (/^(help|-h|--help)$/.test(args[i])
+        && i + 1 == args.length) help.apply(this);
+  }
+
   // <cmd> --help
-  if ('help' == args[0]) {
-    args[0] = args[1];
-    args[1] = '--help';
+  if ('help' == args[skipCount]) {
+    args[skipCount] = args[skipCount + 1];
+    args[skipCount + 1] = '--help';
   }
 
   // executable
   var dir = dirname(argv[1]);
-  var bin = basename(argv[1], '.js') + '-' + args[0];
-
-  // handle options
-  var options = this._execs[name],
-      beginIndex = 1;
-
-  var isAbsolute = function (data) {
-    // node v0.12
-    if ('function' === typeof path.isAbsolute) {
-      return path.isAbsolute(data);
-    } else {
-      return path.resolve(data) == path.normalize(data);
-    }
-  };
+  var bin = basename(argv[1], '.js') + '-' + args[skipCount];
 
   if ('object' === typeof options) {
-    if (options.dir) {
-      if (isAbsolute(options.dir)) {
-        dir = options.dir;
-      } else {
-        dir = path.join(dir, options.dir);
-      }
-    }
     if ('function' === typeof options.bin) {
       bin = options.bin(args);
     } else {
-      bin = options.bin || args[0];
+      bin = options.bin || args[skipCount];
     }
-    beginIndex = options.beginIndex || 1;
   }
 
   // check for ./<bin> first
   var local = path.join(dir, bin);
 
-  // run it
-  args = args.slice(beginIndex);
-  args.unshift(local);
-  var proc = spawn('node', args, { stdio: 'inherit', customFds: [0, 1, 2] });
-  proc.on('error', function(err) {
-    if (err.code == "ENOENT") {
-      console.error('\n  %s(1) does not exist, try --help\n', bin);
-    } else if (err.code == "EACCES") {
-      console.error('\n  %s(1) not executable. try chmod or run with root\n', bin);
+  var self = this,
+      fs = require('fs');
+  fs.exists(local, function (exists) {
+    // check the existence of `local`
+    if (exists) {
+      // run it
+      args = args.slice(skipCount + 1);
+      args.unshift(local);
+      var proc = spawn('node', args, { stdio: 'inherit', customFds: [0, 1, 2] });
+      proc.on('error', function(err) {
+        if (err.code == "ENOENT") {
+          console.error('\n  %s(1) does not exist, try --help\n', bin);
+        } else if (err.code == "EACCES") {
+          console.error('\n  %s(1) not executable. try chmod or run with root\n', bin);
+        }
+      });
+
+      self.runningCommand = proc;
     }
   });
-
-  this.runningCommand = proc;
 };
 
 /**

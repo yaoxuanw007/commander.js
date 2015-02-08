@@ -3,25 +3,26 @@
 var path = require('path'),
     program = require('..');
 
-program
-  .version('0.0.1')
-  .command('api v1 [name]', 'api', {
-//    dir: path.join(__dirname, './api'), bin: 'v1.js', beginIndex: 2
+program.version('0.0.1');
 
-//    dir: './api', bin: 'v1.js', beginIndex: 2
-
-//    dir: './api',
-//    bin: function (args) {
-//      return args[1] + '.js';
-//    },
-//    beginIndex: 2
-
+program.command('api', 'api desc', {
       bin: function (args) {
         return path.join('./', args[0], args[1] + '.js');
       },
-      beginIndex: 2
-  })
-  .parse(process.argv);
+      help: function () {
+        console.log("api help");
+      },
+      skipCount: 1
+});
+
+program.command('other')
+  .description('other')
+  .option('-v,--other-version [VERSION]', 'other version', 'v2')
+  .action(function (options) {
+    console.log(options);
+  });
+
+program.parse(process.argv);
 
 // Try the following:
 //   ./examples/api-custom api v1
