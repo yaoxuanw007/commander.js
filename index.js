@@ -160,9 +160,7 @@ Command.prototype.command = function(name, desc, options) {
 
   if (desc) {
     cmd.description(desc);
-    this.executables = options.hasOwnProperty('executables')
-      ? options.executables
-      : true;
+    this.executables = true;
     this._execs[cmd._name] = options ? options : true;
   }
 
@@ -451,55 +449,92 @@ Command.prototype.executeSubCommand = function(name, argv, args, unknown) {
 
   // handle options
   var options = this._execs[name],
+      // position of last <prefix> in args
       skipCount = 0,
+      // custom help for <prefix>
       help = this.help;
 
   if ('object' === typeof options) {
-    skipCount = options.skipCount || 0;
+    // twoLevel: boolean
+    skipCount = options.twoLevel ? 1 : 0;
 
     if ('function' === typeof options.help) {
       help = function () {
         options.help.apply(this);
-        process.exit();
+        process.exit(0);
       }
     }
   }
 
-  // help
-  if ('help' == args[0] && 1 == args.length) this.help();
+  var maxIndex = Math.min(skipCount, args.length-1);
 
-  // <cmd>
-  if (args.length - skipCount === 0) help.apply(this);
+  if (this.executables) {
+    // <cmd> help, e.g git help
+    // => help of <cmd>
+    if ('help' == args[0]) {
+      if (1 == args.length) {
+        this.help();
+      } else if (1 < args.length) {
+        help.apply(this);
+      }
+    }
 
-  // <cmd> help
-  for (var i = 1; i <= skipCount; i++) {
-    if (/^(help|-h|--help)$/.test(args[i])
-        && i + 1 == args.length) help.apply(this);
+    // <cmd> <prefix> help [<prefix>], e.g. git api help [...]
+    // => custom help
+    for (var i = 1; i <= maxIndex; i++) {
+      if ('help' == args[i]) {
+        if ((i === maxIndex && i + 1 === args.length)
+            || (i !== maxIndex && skipCount + 2 >= args.length)) {
+          help.apply(this);
+        }
+      }
+    }
   }
 
-  // <cmd> --help
-  if ('help' == args[skipCount]) {
-    args[skipCount] = args[skipCount + 1];
-    args[skipCount + 1] = '--help';
+  // <cmd> <prefix> [-h|--help], e.g. git api [-h|--help]
+  // => custom help
+  for (var i = 1; i <= maxIndex; i++) {
+    if ((/^(-h|--help)$/.test(args[i]) && i + 1 == args.length)
+        || args.length - i === 0)
+      help.apply(this);
+  }
+
+  if (args.length < skipCount + 1) {
+    help.apply(this);
+  }
+
+  if (this.executables) {
+    // <cmd> <prefix> help <subcommand>, e.g. git api help v1
+    // => help of <subcommand>
+    if ('help' == args[skipCount]) {
+      args[skipCount] = args[skipCount + 1];
+      args[skipCount + 1] = '--help';
+    }
   }
 
   // executable
   var dir = dirname(argv[1]);
   var bin = basename(argv[1], '.js') + '-' + args[skipCount];
 
-  if ('object' === typeof options) {
-    if ('function' === typeof options.bin) {
-      bin = options.bin(args);
-    } else {
-      bin = options.bin || args[skipCount];
-    }
-  }
-
   // check for ./<bin> first
   var local = path.join(dir, bin);
 
+  if ('object' === typeof options) {
+    // path: the absolute path of subcommand
+    // bin: the name of subcommand
+    if (options.path && options.bin) {
+      local = 'function' === typeof options.path
+        ? options.path(args)
+        : options.path;
+      bin = 'function' === typeof options.bin
+        ? options.bin(args)
+        : options.bin;
+    }
+  }
+
   var self = this,
       fs = require('fs');
+
   fs.exists(local, function (exists) {
     // check the existence of `local`
     if (exists) {
@@ -516,6 +551,8 @@ Command.prototype.executeSubCommand = function(name, argv, args, unknown) {
       });
 
       self.runningCommand = proc;
+    } else {
+      console.error('\n  %s(1) does not exist, try --help\n', bin);
     }
   });
 };

@@ -5,16 +5,20 @@ var path = require('path'),
 
 program.version('0.0.1');
 
-program.command('api', 'api desc', {
+program.command('api <cmd>', 'api desc', {
+      path: function (args) {
+        return path.join(__dirname, 'api', args[1] + '.js');
+      },
       bin: function (args) {
-        return path.join('./', args[0], args[1] + '.js');
+        return 'api ' + args[1];
       },
       help: function () {
         console.log("api help");
       },
-      executables: false,
-      skipCount: 1
+      twoLevel: true
 });
+
+program.executables = false;
 
 program.command('other')
   .description('other')
